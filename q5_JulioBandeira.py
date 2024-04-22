@@ -1,15 +1,19 @@
 import uuid
+from flask import Flask, request, jsonify
+import hashlib
+
+app = Flask(__name__)
 
 accounts = []
 
 create_account = lambda name, password, balance: accounts.append({
     'id': str(uuid.uuid4()),
     'name': name,
-    'password': password,
+    'password': hashlib.sha256(password.encode()).hexdigest(),
     'balance': balance
 })
 
-login_account = lambda: any(True for account in accounts if account['name'] == input("Enter name: ") and account['password'] == input("Enter password: "))
+login_account = lambda: any(True for account in accounts if account['name'] == request.form.get('name') and account['password'] == hashlib.sha256(request.form.get('password').encode()).hexdigest())
 
 TRANSFER_successful = lambda TRANSFER_amount, balance: (
     print("Requested Transfer amount: $%.2f" % TRANSFER_amount),
@@ -31,7 +35,7 @@ withdrawal_successful = lambda withdrawal_amount, balance: (
             else print("Withdrawal of $%.2f cancelled." % withdrawal_amount)
         ))(),
         (lambda: print("Payment receipt:"))(),
-        (lambda: print("Name: "))(),
+        (lambda: print("Name: John"))(),  # Replace "John" with the actual name variable
         (lambda: print("Withdrawal amount: $%.2f" % withdrawal_amount))()
     ))()
 )
@@ -54,7 +58,7 @@ invalid_option = lambda: print("Invalid option.")
 
 request_credit_account_details = lambda: (
     (lambda password: print("Credit account details requested."))
-    if input("Enter transaction password: ") == accounts[0]['password']
+    if hashlib.sha256(request.form.get('password').encode()).hexdigest() == accounts[0]['password']
     else print("Invalid transaction password.")
 )
 
@@ -76,9 +80,18 @@ transaction = lambda balance: (
     )
 )
 
+@app.route('/login', methods=['POST'])
+def login():
+    print("Received request with the following data:")
+    print("Name:", request.form.get('name'))
+    print("Password:", request.form.get('password'))
+    
+    if login_account():
+        return jsonify({'message': 'Login successful'})
+    else:
+        return jsonify({'message': 'Invalid username or password'})
+
 create_account("John", "password1", 1000.0)
 
-if login_account():
-    transaction(accounts[0]['balance'])
-else:
-    print("Invalid username or password.")
+if __name__ == '__main__':
+    app.run()
